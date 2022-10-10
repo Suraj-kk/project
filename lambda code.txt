@@ -1,0 +1,54 @@
+import json
+import boto3
+import csv
+import mysql.connector
+s3client=boto3.client('s3')
+def lambda_handler(event, context):
+    print(event)
+    bucket = event['Records'][0]['s3']['bucket']['name']
+    file_key = event['Records'][0]['s3']['object']['key']
+    response = s3client.get_object(Bucket=bucket, Key=file_key)
+    
+    if file_key.endswith('.csv'):
+        lines = response['Body'].read().decode('utf-8')
+        data=csv.reader(lines.splitlines(),delimiter=',')
+        next(data)
+        rows=list(data)
+        print(rows)
+        for row in rows:
+           print(row)
+    
+    if file_key.endswith('.json'):
+        data=json.load(response['Body'])
+        rows=[]
+        for i in range(len(data)):
+             value=list(data[i].values())
+             rows.append(value)
+        print(rows)
+   
+    if file_key.endswith('.txt'):
+        lines = response['Body'].read().decode('utf-8')
+        data=csv.reader(lines.splitlines(),delimiter='\t')
+        next(data)
+        rows=list(data)
+        print(rows)
+        for row in rows:
+           print(row)
+    
+        
+    connection = mysql.connector.connect(host='rds endpoint  ',
+                                         database=' database name ',
+                                         port='3306',
+                                         user='admin',
+                                         password='database password ')
+    
+    mysql_insert ="insert into covid_data (Sno,State,date,People_tested,Confirmed,Deaths,Cured,First_dose,Fully_vaccinate) values (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+                              
+    cursor = connection.cursor()
+    cursor.executemany(mysql_insert,rows)
+    connection.commit()
+
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Hello from Lambda!')
+    }
